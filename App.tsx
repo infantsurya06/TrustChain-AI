@@ -11,6 +11,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { Landing } from './pages/Landing';
 import { CreateDocument } from './pages/CreateDocument';
 import { VerifyDocument } from './pages/VerifyDocument';
+import { VerificationHistory } from './pages/VerificationHistory';
 import { Dashboard } from './pages/Dashboard';
 
 function App() {
@@ -35,6 +36,7 @@ function App() {
                 
                 {/* Public Access */}
                 <Route path="/verify" element={<VerifyDocument />} />
+                <Route path="/history" element={<VerificationHistory />} />
                 
                 {/* 
                   RBAC RULE: Audit Dashboard

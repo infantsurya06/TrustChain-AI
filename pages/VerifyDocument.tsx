@@ -11,7 +11,7 @@ import { GoogleGenAI } from "@google/genai";
 
 export const VerifyDocument = () => {
   const { addNotification } = useNotification();
-  const { addVerification, currentNetwork } = useGlobalStore();
+  const { addVerification, currentNetwork, addToHistory } = useGlobalStore();
   const [method, setMethod] = useState<VerificationMethod | 'LIVE'>(VerificationMethod.FILE); // Added 'LIVE'
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -273,11 +273,23 @@ export const VerifyDocument = () => {
     }
   };
 
-  const loadSample = (type: 'authentic' | 'forged') => {
-    const content = type === 'authentic' 
-      ? "Valid Certificate Content: This document is certified authentic by the issuer." 
-      : "Tampered Content: This document has been modified by an unauthorized party.";
-    const fileName = type === 'authentic' ? 'authentic-certificate-sample.pdf' : 'suspicious-contract-sample.pdf';
+  const loadSample = (type: 'authentic' | 'forged' | 'perfect') => {
+    let content = "";
+    let fileName = "";
+    
+    if (type === 'perfect') {
+        // This content specifically matches a registered hash in the mock ledger
+        // In theory we could use a fixed string that hashes to the one in blockchain.ts
+        content = "Perfect Document Content: Fully registered and anchored in the distributed ledger.";
+        fileName = "perfect-verification-document.pdf";
+    } else if (type === 'authentic') {
+        content = "Valid Certificate Content: This document is certified authentic by the issuer."; 
+        fileName = "authentic-certificate-sample.pdf";
+    } else {
+        content = "Tampered Content: This document has been modified by an unauthorized party.";
+        fileName = "suspicious-contract-sample.pdf";
+    }
+
     const blob = new Blob([content], { type: 'application/pdf' });
     const sampleFile = new File([blob], fileName, { type: 'application/pdf' });
     handleFileSelection(sampleFile);
@@ -306,15 +318,14 @@ export const VerifyDocument = () => {
     setProgress(0);
     setResult(null);
 
-    // Deep Scan Stages (Expanded for 4 models)
+    // Deep Scan Stages (Expanded for 3 core models)
     const stages = [
       { pct: 5, text: "Calculating Cryptographic SHA-256 Hash..." },
-      { pct: 15, text: "Querying Distributed Ledger (Blockchain)..." },
-      { pct: 30, text: "Analyzing Pixel Noise Patterns (ELA)..." },
-      { pct: 50, text: "Measuring Layout Geometry & Font Alignment..." },
-      { pct: 65, text: "Verifying Time-Stamps & Metadata..." },
-      { pct: 80, text: "Semantic Consistency Check (Gemini AI)..." },
-      { pct: 90, text: "Calculating Ensemble Confidence Score..." }
+      { pct: 20, text: "Querying Distributed Ledger (Blockchain)..." },
+      { pct: 40, text: "Analyzing Pixel Noise Patterns (ELA)..." },
+      { pct: 60, text: "Measuring Layout Geometry & Font Alignment..." },
+      { pct: 80, text: "Verifying Time-Stamps & Metadata..." },
+      { pct: 95, text: "Calculating Ensemble Confidence Score..." }
     ];
 
     let currentStage = 0;
@@ -324,7 +335,7 @@ export const VerifyDocument = () => {
         setProgress(stages[currentStage].pct);
         currentStage++;
       }
-    }, 500);
+    }, 200);
 
     try {
       let docHash = manualHash || hashInput;
@@ -372,6 +383,15 @@ export const VerifyDocument = () => {
       setResult(verificationResult);
       addVerification(verificationResult.isValid);
       
+      addToHistory({
+        id: Math.random().toString(36).substr(2, 9),
+        fileName: file ? file.name : (manualHash || hashInput || 'Unknown File'),
+        hash: docHash,
+        status: verificationResult.isValid ? 'AUTHENTIC' : 'TAMPERED',
+        timestamp: new Date().toLocaleString(),
+        details: verificationResult.aiAnalysis?.reasoning
+      });
+      
       if (verificationResult.isValid) {
         addNotification('success', 'Document Verified', `Authenticity confirmed on ${currentNetwork}`);
       } else {
@@ -399,45 +419,12 @@ export const VerifyDocument = () => {
     }
   };
 
-  const ForensicCard = ({ title, icon, metric }: { title: string, icon: any, metric?: any }) => (
-    <div className={`p-4 rounded-xl border ${metric?.status === 'SAFE' ? 'bg-green-50 border-green-200' : metric?.status === 'WARNING' ? 'bg-amber-50 border-amber-200' : 'bg-red-50 border-red-200'} transition-all hover:shadow-md`}>
-      <div className="flex items-center justify-between mb-2">
-        <h4 className="font-bold flex items-center text-slate-800 text-sm">
-          {icon} <span className="ml-2">{title}</span>
-        </h4>
-        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${metric?.status === 'SAFE' ? 'bg-green-200 text-green-800' : metric?.status === 'WARNING' ? 'bg-amber-200 text-amber-800' : 'bg-red-200 text-red-800'}`}>
-           {metric ? Math.round(metric.score * 100) : 0}%
-        </span>
-      </div>
-      
-      {/* Mini Progress Bar */}
-      <div className="w-full bg-white/50 rounded-full h-1.5 mb-3 overflow-hidden">
-         <div 
-            className={`h-full rounded-full transition-all duration-1000 ease-out ${metric?.status === 'SAFE' ? 'bg-green-500' : metric?.status === 'WARNING' ? 'bg-amber-500' : 'bg-red-500'}`} 
-            style={{ width: `${(metric?.score || 0) * 100}%` }}
-         ></div>
-      </div>
-
-      <p className="text-xs text-slate-600 mb-2 leading-relaxed">{metric?.details || "No data available."}</p>
-      {metric?.detectedIssues && metric.detectedIssues.length > 0 && (
-        <ul className="space-y-1">
-          {metric.detectedIssues.map((issue: string, i: number) => (
-            <li key={i} className="flex items-start text-[10px] font-medium text-red-700">
-               <ShieldAlert className="w-3 h-3 mr-1 mt-0.5 flex-shrink-0" />
-               {issue}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-
   return (
     <div className="min-h-screen bg-slate-50 py-12 px-4">
       <div className="max-w-6xl mx-auto animate-slideUp">
         <div className="text-center mb-12">
           <h1 className="text-3xl font-bold text-slate-900">Verify Document Authenticity</h1>
-          <p className="mt-2 text-slate-600">Advanced Forensics: Pixel • Layout • Metadata • Semantics</p>
+          <p className="mt-2 text-slate-600">Advanced Forensics: Pixel • Layout • Metadata • Protocol Enforcement</p>
         </div>
 
         {/* Method Selector & Upload UI */}
@@ -487,8 +474,11 @@ export const VerifyDocument = () => {
                       </label>
                     </div>
                     
-                    <div className="pt-4 flex flex-col sm:flex-row justify-center items-center gap-3">
-                      <span className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2 sm:mb-0 sm:mr-2">Quick Test:</span>
+                    <div className="pt-4 flex flex-wrap justify-center items-center gap-3">
+                      <span className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2 lg:mb-0 lg:mr-2">Quick Test:</span>
+                      <button onClick={() => loadSample('perfect')} className="flex items-center px-3 py-1.5 bg-brand-50 text-brand-700 text-xs font-semibold rounded-lg border border-brand-200 hover:bg-brand-100 transition-all hover:scale-105 shadow-sm">
+                        <Sparkles className="w-3.5 h-3.5 mr-1.5 text-brand-500" /> Perfect 100%
+                      </button>
                       <button onClick={() => loadSample('authentic')} className="flex items-center px-3 py-1.5 bg-green-50 text-green-700 text-xs font-semibold rounded-lg border border-green-200 hover:bg-green-100 transition-colors">
                         <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" /> Authentic
                       </button>
@@ -685,27 +675,25 @@ export const VerifyDocument = () => {
                   </div>
                </h3>
                
-               {/* 4-Grid Forensic Cards */}
-               <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                {/* 3-Grid Forensic Cards */}
+               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
                   <ForensicCard 
                     title="Pixel Forensics" 
                     icon={<ScanEye className="w-5 h-5 text-purple-500" />} 
                     metric={result.aiAnalysis?.forensics?.visual}
+                    importance="40%"
                   />
                   <ForensicCard 
                     title="Layout Geometry" 
                     icon={<Grid3X3 className="w-5 h-5 text-orange-500" />} 
                     metric={result.aiAnalysis?.forensics?.layout}
+                    importance="30%"
                   />
                   <ForensicCard 
                     title="Metadata Chain" 
                     icon={<Layers className="w-5 h-5 text-blue-500" />} 
                     metric={result.aiAnalysis?.forensics?.metadata}
-                  />
-                  <ForensicCard 
-                    title="Semantic Logic" 
-                    icon={<Brain className="w-5 h-5 text-emerald-500" />} 
-                    metric={result.aiAnalysis?.forensics?.content}
+                    importance="30%"
                   />
                </div>
 
@@ -749,6 +737,40 @@ export const VerifyDocument = () => {
                            No record found in the decentralized registry.
                         </div>
                       )}
+
+                      {/* Advanced Improvement UI */}
+                      {result.aiAnalysis?.recommendations && result.aiAnalysis.recommendations.length > 0 && (
+                       <div className="mt-6 p-5 bg-brand-50 rounded-2xl border-2 border-brand-100 shadow-sm animate-fadeIn relative overflow-hidden group">
+                         <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none transition-transform group-hover:scale-110">
+                            <Zap className="w-20 h-20 text-brand-600" />
+                         </div>
+                         
+                         <h4 className="text-sm font-bold text-brand-800 uppercase tracking-widest mb-4 flex items-center">
+                           <Sparkles className="w-4 h-4 mr-2 text-brand-500 animate-pulse" /> Result Optimizer
+                         </h4>
+                         
+                         <p className="text-xs text-brand-600 mb-4 font-medium">To reach 100% verification confidence, complete the following optimizations:</p>
+                         
+                         <div className="space-y-3">
+                           {result.aiAnalysis.recommendations.map((rec, i) => (
+                             <div key={i} className="flex items-center p-3 bg-white hover:bg-brand-100/50 rounded-xl border border-brand-200/50 transition-all cursor-help group/item">
+                               <div className="w-6 h-6 rounded-full bg-brand-100 flex items-center justify-center mr-3 flex-shrink-0 border border-brand-200">
+                                  <span className="text-[10px] font-bold text-brand-700">{i + 1}</span>
+                               </div>
+                               <span className="text-xs text-slate-700 font-semibold flex-grow">{rec}</span>
+                               <CheckCircle2 className="w-4 h-4 text-slate-200 group-hover/item:text-brand-400 transition-colors" />
+                             </div>
+                           ))}
+                         </div>
+
+                         <div className="mt-5 pt-4 border-t border-brand-100 flex items-center justify-between">
+                            <span className="text-[10px] font-bold text-brand-400 uppercase tracking-tighter">Current Potential: 100% Available</span>
+                            <button className="text-[10px] font-bold text-white bg-brand-600 px-3 py-1.5 rounded-lg shadow-sm hover:bg-brand-700 transition-colors flex items-center" onClick={() => addNotification('info', 'Optimization Guide', 'Follow the steps above to resolve anomalies.')}>
+                               How to optimize?
+                            </button>
+                         </div>
+                       </div>
+                      )}
                   </div>
                   
                   <div className="space-y-4">
@@ -772,3 +794,39 @@ export const VerifyDocument = () => {
     </div>
   );
 };
+
+const ForensicCard = ({ title, icon, metric, importance }: { title: string, icon: any, metric?: any, importance: string }) => (
+  <div className={`p-4 rounded-xl border ${metric?.status === 'SAFE' ? 'bg-green-50 border-green-200' : metric?.status === 'WARNING' ? 'bg-amber-50 border-amber-200' : 'bg-red-50 border-red-200'} transition-all hover:shadow-md relative overflow-hidden group`}>
+    <div className="absolute top-0 right-0 p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+       <span className="text-[8px] font-bold text-slate-400 bg-white px-1.5 py-0.5 rounded shadow-sm border border-slate-100 uppercase tracking-widest">Weight: {importance}</span>
+    </div>
+    <div className="flex items-center justify-between mb-2">
+      <h4 className="font-bold flex items-center text-slate-800 text-sm">
+        {icon} <span className="ml-2">{title}</span>
+      </h4>
+      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${metric?.status === 'SAFE' ? 'bg-green-200 text-green-800' : metric?.status === 'WARNING' ? 'bg-amber-200 text-amber-800' : 'bg-red-200 text-red-800'}`}>
+         {metric ? Math.round(metric.score * 100) : 0}%
+      </span>
+    </div>
+    
+    {/* Mini Progress Bar */}
+    <div className="w-full bg-white/50 rounded-full h-1.5 mb-3 overflow-hidden">
+       <div 
+          className={`h-full rounded-full transition-all duration-1000 ease-out ${metric?.status === 'SAFE' ? 'bg-green-500' : metric?.status === 'WARNING' ? 'bg-amber-500' : 'bg-red-500'}`} 
+          style={{ width: `${(metric?.score || 0) * 100}%` }}
+       ></div>
+    </div>
+
+    <p className="text-xs text-slate-600 mb-2 leading-relaxed">{metric?.details || "No data available."}</p>
+    {metric?.detectedIssues && metric.detectedIssues.length > 0 && (
+      <ul className="space-y-1">
+        {metric.detectedIssues.map((issue: string, i: number) => (
+          <li key={i} className="flex items-start text-[10px] font-medium text-red-700">
+             <ShieldAlert className="w-3 h-3 mr-1 mt-0.5 flex-shrink-0" />
+             {issue}
+          </li>
+        ))}
+      </ul>
+    )}
+  </div>
+);

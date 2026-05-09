@@ -59,35 +59,58 @@ export const CreateDocument = () => {
   if (!isAuthorized) {
     return (
       <div className="min-h-screen bg-slate-50 py-20 px-4">
-        <div className="max-w-xl mx-auto text-center animate-slideUp">
-          <div className="bg-white rounded-3xl shadow-xl p-10 border border-slate-100">
-            <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <Lock className="w-10 h-10 text-slate-400" />
+        <div className="max-w-3xl mx-auto text-center animate-slideUp">
+          <div className="bg-white rounded-3xl shadow-xl p-10 border border-slate-100 overflow-hidden relative">
+            <div className="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-brand-500 via-purple-500 to-brand-500"></div>
+            
+            <div className="w-20 h-20 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-sm">
+              <Wallet className="w-10 h-10 text-brand-600" />
             </div>
-            <h1 className="text-3xl font-bold text-slate-900 mb-4">Enterprise Access Only</h1>
-            <p className="text-slate-600 mb-8">
-              Document issuance is restricted to verified organizations. You are currently viewing as <span className="font-bold text-slate-900">{userRole}</span>.
-              <br/>Please connect a wallet with Issuer credentials or apply for enterprise onboarding.
+            
+            <h1 className="text-3xl font-bold text-slate-900 mb-4">Connect Authorized Wallet</h1>
+            <p className="text-slate-600 mb-2">
+              Document registration requires verified <span className="text-brand-600 font-bold">Issuer</span> or <span className="text-purple-600 font-bold">Admin</span> credentials.
+            </p>
+            <p className="text-sm text-slate-400 mb-10 italic">
+               Currently viewed as <span className="font-semibold text-slate-700 uppercase">{userRole}</span>
             </p>
             
-            <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <button 
                 onClick={() => connectAs('ISSUER')}
-                className="w-full py-4 bg-brand-600 text-white rounded-xl font-bold hover:bg-brand-700 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
+                className="group p-6 bg-white border-2 border-slate-100 rounded-2xl hover:border-brand-500 hover:bg-brand-50/30 transition-all text-left flex flex-col items-start gap-4 hover:-translate-y-1 shadow-sm hover:shadow-md"
               >
-                Connect Issuer Wallet
+                <div className="p-3 bg-brand-50 rounded-xl group-hover:bg-brand-100 transition-colors">
+                   <Building2 className="w-6 h-6 text-brand-600" />
+                </div>
+                <div>
+                    <h3 className="font-bold text-slate-900">Issuer Portal</h3>
+                    <p className="text-xs text-slate-500 mt-1 leading-relaxed">Register new certificates, contracts, and verified digital assets.</p>
+                </div>
               </button>
-              
-              <button className="w-full py-4 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold hover:bg-slate-50 transition-all">
-                Apply for Enterprise Verification
+
+              <button 
+                onClick={() => connectAs('ADMIN')}
+                className="group p-6 bg-white border-2 border-slate-100 rounded-2xl hover:border-purple-500 hover:bg-purple-50/30 transition-all text-left flex flex-col items-start gap-4 hover:-translate-y-1 shadow-sm hover:shadow-md"
+              >
+                <div className="p-3 bg-purple-50 rounded-xl group-hover:bg-purple-100 transition-colors">
+                   <Shield className="w-6 h-6 text-purple-600" />
+                </div>
+                <div>
+                    <h3 className="font-bold text-slate-900">Admin Console</h3>
+                    <p className="text-xs text-slate-500 mt-1 leading-relaxed">Global network management, audit logs, and security oversight.</p>
+                </div>
               </button>
             </div>
 
-            <div className="mt-8 pt-8 border-t border-slate-100">
-               <div className="flex items-center justify-center space-x-2 text-xs text-slate-500 font-medium uppercase tracking-wider">
-                  <Building2 className="w-4 h-4" />
-                  <span>TrustChain Gov/Enterprise Gateway</span>
+            <div className="mt-10 pt-8 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+               <div className="flex items-center space-x-2 text-xs text-slate-400 font-medium uppercase tracking-wider">
+                  <Lock className="w-4 h-4" />
+                  <span>Enterprise Security Enabled</span>
                </div>
+               <button className="text-sm text-slate-500 hover:text-brand-600 font-semibold transition-colors flex items-center">
+                 Apply for verification <ExternalLink className="w-3.5 h-3.5 ml-1.5" />
+               </button>
             </div>
           </div>
         </div>
@@ -660,7 +683,9 @@ export const CreateDocument = () => {
                 </div>
                 <div className="flex justify-between border-b border-slate-200 pb-2">
                   <span className="text-slate-500">Transaction ID</span>
-                  <span className="font-mono text-sm text-brand-600 cursor-pointer">0x7f...3a9c</span>
+                  <span className="font-mono text-sm text-brand-600 truncate max-w-[200px]" title={registeredDoc.txHash}>
+                    {registeredDoc.txHash || '0x...'}
+                  </span>
                 </div>
                 <div className="flex justify-between border-b border-slate-200 pb-2">
                   <span className="text-slate-500">IPFS CID</span>

@@ -110,9 +110,21 @@ interface GlobalState {
   latestAlert: SystemAlert | null;
   recentAlerts: SystemAlert[];
   dismissAlert: () => void;
+  removeRecentAlert: (id: string) => void;
   addDocument: (doc: DocumentMetadata) => void;
   addVerification: (isValid: boolean) => void;
   liveVerifications: LiveVerification[];
+  verificationHistory: VerificationHistoryItem[];
+  addToHistory: (item: VerificationHistoryItem) => void;
+}
+
+export interface VerificationHistoryItem {
+  id: string;
+  fileName: string;
+  hash: string;
+  status: 'AUTHENTIC' | 'TAMPERED' | 'UNKNOWN';
+  timestamp: string;
+  details?: string;
 }
 
 const GlobalContext = createContext<GlobalState | undefined>(undefined);
@@ -143,8 +155,16 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [latestAlert, setLatestAlert] = useState<SystemAlert | null>(null);
   const [recentAlerts, setRecentAlerts] = useState<SystemAlert[]>([]);
   const [liveVerifications, setLiveVerifications] = useState<LiveVerification[]>([]);
+  const [verificationHistory, setVerificationHistory] = useState<VerificationHistoryItem[]>([]);
+
+  const addToHistory = useCallback((item: VerificationHistoryItem) => {
+    setVerificationHistory(prev => [item, ...prev]);
+  }, []);
 
   const dismissAlert = useCallback(() => setLatestAlert(null), []);
+  const removeRecentAlert = useCallback((id: string) => {
+    setRecentAlerts(prev => prev.filter(a => a.id !== id));
+  }, []);
 
   const connectAs = useCallback(async (roleRequest: UserRole) => {
     try {
@@ -250,7 +270,7 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => {
     if (!isLive) return;
 
-    const intervalTime = simulationSpeed === 'FAST' ? 800 : simulationSpeed === 'SLOW' ? 3000 : 1500;
+    const intervalTime = simulationSpeed === 'FAST' ? 300 : simulationSpeed === 'SLOW' ? 2000 : 800;
 
     const interval = setInterval(() => {
       const rand = Math.random();
@@ -286,21 +306,42 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       // Status Update Simulation (Pending -> Active/Revoked)
       setRecentDocs(prev => prev.map(doc => {
         if (doc.status === 'PENDING') {
-            if (Math.random() > 0.4) {
-                const isSuccess = Math.random() > 0.1;
-                const newStatus = isSuccess ? 'ACTIVE' : 'SUSPICIOUS';
+            if (Math.random() > 0.3) {
+                const randOutcome = Math.random();
+                const isSuccess = randOutcome > 0.15;
+                const newStatus = isSuccess ? 'ACTIVE' : (randOutcome > 0.05 ? 'SUSPICIOUS' : 'REVOKED');
                 
+                // Log the outcome
+                setLogs(prevLogs => [...prevLogs.slice(-19), {
+                  time: new Date().toLocaleTimeString(),
+                  msg: `System: Verification ${isSuccess ? 'Passed' : 'Failed'} for ${doc.id} - Consensus: ${isSuccess ? 'Finalized' : 'Rejected'}`,
+                  type: isSuccess ? 'success' : 'error'
+                }]);
+
                 // If it fails, trigger an alert
-                if (!isSuccess && Math.random() > 0.5) {
+                if (!isSuccess) {
                     const alert: SystemAlert = {
                         id: Math.random().toString(),
-                        title: 'Registration Rejected',
-                        message: `Consensus failed for ${doc.id}`,
+                        title: 'Consensus Failure',
+                        message: `Forgery detected or consensus failed for ${doc.title}`,
                         type: 'error',
                         timestamp: new Date().toLocaleTimeString()
                     };
                     setLatestAlert(alert);
-                    setRecentAlerts(prev => [alert, ...prev].slice(0, 9));
+                    setRecentAlerts(prevAlerts => [alert, ...prevAlerts].slice(0, 9));
+                    setTimeout(() => setLatestAlert(null), 5000);
+                } else {
+                    // Success alert
+                    const alert: SystemAlert = {
+                        id: Math.random().toString(),
+                        title: 'Document Finalized',
+                        message: `${doc.title} has been successfully verified and anchored.`,
+                        type: 'success',
+                        timestamp: new Date().toLocaleTimeString()
+                    };
+                    setLatestAlert(alert);
+                    setRecentAlerts(prevAlerts => [alert, ...prevAlerts].slice(0, 9));
+                    setTimeout(() => setLatestAlert(null), 3000);
                 }
                 
                 return { ...doc, status: newStatus };
@@ -341,25 +382,39 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
 
       // Alerts
-      if (rand < 0.015) {
-        const alert: SystemAlert = {
+      if (rand < 0.02) {
+        const alertTypes: SystemAlert[] = [
+          {
             id: Math.random().toString(),
             title: 'Suspicious Activity',
             message: 'Multiple failed verification attempts detected from IP 192.168.x.x',
             type: 'warning',
             timestamp: new Date().toLocaleTimeString()
-        };
-        setLatestAlert(alert);
-        setRecentAlerts(prev => [alert, ...prev].slice(0, 9));
-        setTimeout(() => setLatestAlert(null), 6000);
-      } else if (rand > 0.985) {
-         const alert: SystemAlert = {
+          },
+          {
             id: Math.random().toString(),
-            title: 'System Audit',
-            message: 'Smart contract audit passed successfully.',
+            title: 'Latency Spike',
+            message: 'Network latency increased to 450ms. Syncing nodes...',
+            type: 'info',
+            timestamp: new Date().toLocaleTimeString()
+          },
+          {
+            id: Math.random().toString(),
+            title: 'Protocol Upgrade',
+            message: 'New consensus rules being propagated to layer-2 nodes.',
             type: 'success',
             timestamp: new Date().toLocaleTimeString()
-        };
+          },
+          {
+            id: Math.random().toString(),
+            title: 'Node Offline',
+            message: 'Validator node #12 disconnected unexpectedly.',
+            type: 'error',
+            timestamp: new Date().toLocaleTimeString()
+          }
+        ];
+        
+        const alert = alertTypes[Math.floor(Math.random() * alertTypes.length)];
         setLatestAlert(alert);
         setRecentAlerts(prev => [alert, ...prev].slice(0, 9));
         setTimeout(() => setLatestAlert(null), 6000);
@@ -386,9 +441,12 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       latestAlert,
       recentAlerts,
       dismissAlert,
+      removeRecentAlert,
       addDocument,
       addVerification,
-      liveVerifications
+      liveVerifications,
+      verificationHistory,
+      addToHistory
     }}>
       {children}
     </GlobalContext.Provider>

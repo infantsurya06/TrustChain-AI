@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Shield, Database, Brain, ArrowRight, CheckCircle, Lock, Zap } from 'lucide-react';
+import { motion } from 'motion/react';
 
 export const Landing = () => {
   return (
@@ -51,7 +52,13 @@ export const Landing = () => {
       {/* Stats Section with Glassmorphism */}
       <div className="py-12 relative z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="glass-dark rounded-3xl p-10 md:p-14 shadow-2xl animate-scaleIn delay-300 border border-slate-700/50">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            className="glass-dark rounded-3xl p-10 md:p-14 shadow-2xl border border-slate-700/50"
+          >
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center divide-y md:divide-y-0 md:divide-x divide-slate-700/50">
               <div className="p-4">
                 <div className="text-4xl md:text-5xl font-bold text-white mb-2 tracking-tight">10k+</div>
@@ -70,7 +77,7 @@ export const Landing = () => {
                 <div className="text-slate-400 font-medium">Avg Verification Time</div>
               </div>
             </div>
-          </div>
+          </motion.div>
         </div>
       </div>
 
@@ -106,13 +113,24 @@ export const Landing = () => {
                 delay: "delay-300"
               }
             ].map((item, idx) => (
-              <div key={idx} className={`glass-panel p-8 rounded-3xl hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 animate-slideUp ${item.delay} group`}>
+              <motion.div 
+                key={idx} 
+                initial={{ opacity: 0, scale: 0.92, y: 20 }}
+                whileInView={{ opacity: 1, scale: 1, y: 0 }}
+                viewport={{ once: true, margin: "-50px" }}
+                transition={{ 
+                  duration: 0.6, 
+                  delay: idx * 0.15,
+                  ease: [0.16, 1, 0.3, 1] 
+                }}
+                className="glass-panel p-8 rounded-3xl hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 group"
+              >
                 <div className={`${item.bg} w-16 h-16 rounded-2xl flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform duration-300`}>
                   {item.icon}
                 </div>
                 <h3 className="text-2xl font-bold text-slate-900 mb-4">{item.title}</h3>
                 <p className="text-slate-600 leading-relaxed text-lg">{item.desc}</p>
-              </div>
+              </motion.div>
             ))}
           </div>
         </div>

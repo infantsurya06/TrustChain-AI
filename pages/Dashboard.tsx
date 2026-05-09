@@ -1,20 +1,11 @@
 import React, { useRef, useEffect } from 'react';
 import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
-  PieChart, Pie, Cell
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
 import { Activity, FileText, AlertTriangle, Users, Copy, Play, Pause, Box, Loader2, Terminal, X, Bell, ShieldCheck, ExternalLink, FileDown, Globe, CheckCircle, ShieldAlert, Lock, Eye, Zap, Radio } from 'lucide-react';
 import { useNotification } from '../components/NotificationSystem';
 import { useGlobalStore } from '../components/GlobalStore';
 import { PDFService } from '../services/pdfGenerator';
-
-const INITIAL_STATUS_DATA = [
-  { name: 'Authentic', value: 850 },
-  { name: 'Fake/Tampered', value: 120 },
-  { name: 'Revoked', value: 30 },
-];
-
-const COLORS = ['#0ea5e9', '#ef4444', '#f59e0b'];
 
 export const Dashboard = () => {
   const { addNotification } = useNotification();
@@ -22,7 +13,7 @@ export const Dashboard = () => {
     isLive, setIsLive, 
     simulationSpeed, setSimulationSpeed,
     recentDocs, activityData, stats, mempool, blockHeight, logs,
-    latestAlert, recentAlerts, dismissAlert, liveVerifications,
+    latestAlert, recentAlerts, dismissAlert, removeRecentAlert, liveVerifications,
     userRole
   } = useGlobalStore();
   
@@ -81,6 +72,16 @@ export const Dashboard = () => {
                     <X className="w-5 h-5" />
                 </button>
             </div>
+        )}
+
+        {/* Read-Only Banner for Verifiers */}
+        {isVerifier && (
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-center text-blue-700 animate-fadeIn">
+            <Eye className="w-5 h-5 mr-3" />
+            <div>
+              <span className="font-bold">Read-Only Mode:</span> As a Verifier, you have view access to the public registry and live verification telemetry. Node issuance and system administration controls are restricted.
+            </div>
+          </div>
         )}
 
         <div className="flex flex-col xl:flex-row xl:items-center justify-between mb-8 gap-4">
@@ -246,12 +247,11 @@ export const Dashboard = () => {
                 </div>
                 </div>
             ) : (
-                /* Hidden for Verifiers, Locked for Issuers */
-                !isVerifier && (
-                    <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 border-dashed flex items-center justify-center text-slate-400 text-sm">
-                        <Lock className="w-4 h-4 mr-2" /> Live Mempool Access Restricted (Admin Only)
-                    </div>
-                )
+                <div className="bg-slate-50 p-8 rounded-xl border border-slate-200 border-dashed flex flex-col items-center justify-center text-slate-400 text-center animate-fadeIn">
+                    <Lock className="w-8 h-8 mb-3 opacity-50" />
+                    <h4 className="font-bold text-slate-900 mb-1">Mempool Access Restricted</h4>
+                    <p className="text-xs max-w-[250px]">Live transaction monitoring is reserved for network administrators and consensus nodes.</p>
+                </div>
             )}
 
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
@@ -305,21 +305,21 @@ export const Dashboard = () => {
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex flex-col">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium transition-all duration-300 w-fit ${
-                                doc.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 
-                                doc.status === 'REVOKED' ? 'bg-red-100 text-red-800' : 
-                                doc.status === 'SUSPICIOUS' ? 'bg-yellow-100 text-yellow-800' :
-                                'bg-blue-100 text-blue-800'
+                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold transition-all duration-500 w-fit shadow-sm ${
+                                doc.status === 'ACTIVE' ? 'bg-green-100 text-green-700 border border-green-200' : 
+                                doc.status === 'REVOKED' || doc.status === 'SUSPICIOUS' ? 'bg-red-50 text-red-700 border border-red-100 animate-pulse' : 
+                                'bg-blue-50 text-blue-700 border border-blue-100'
                             }`}>
-                                {doc.status === 'PENDING' && <Loader2 className="w-3 h-3 mr-1 animate-spin" />}
-                                {doc.status === 'PENDING' ? 'Confirming...' : 
-                                doc.status === 'ACTIVE' ? 'Completed' :
-                                doc.status}
+                                {doc.status === 'PENDING' && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
+                                {doc.status === 'PENDING' ? 'Processing' : 
+                                 doc.status === 'ACTIVE' ? 'Completed' :
+                                 'Failed/Rejected'}
                             </span>
-                            {/* Visual Progress Bar for Pending Docs */}
+                            {/* Visual Progress Bar for Processing Docs */}
                             {doc.status === 'PENDING' && (
-                                <div className="mt-1.5 w-24 h-1 bg-blue-100 rounded-full overflow-hidden">
-                                    <div className="h-full bg-blue-500 rounded-full animate-[shimmer_1.5s_infinite] w-2/3"></div>
+                                <div className="mt-2 w-28 h-1.5 bg-slate-100 rounded-full overflow-hidden relative">
+                                    <div className="absolute inset-y-0 left-0 bg-blue-500 rounded-full w-[70%]" />
+                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent w-full animate-shimmer" style={{ backgroundSize: '200% 100%' }}></div>
                                 </div>
                             )}
                           </div>
@@ -354,7 +354,7 @@ export const Dashboard = () => {
             </div>
           </div>
 
-          {/* Right Sidebar: Real-time Logs & Trust Distribution */}
+          {/* Right Sidebar: Real-time Logs & Alerts */}
           <div className="space-y-8">
             
             {/* Live Alerts Feed */}
@@ -371,14 +371,26 @@ export const Dashboard = () => {
                        <div className="text-center py-6 text-slate-400 text-sm">No critical alerts detected.</div>
                    ) : (
                        recentAlerts.map((alert) => (
-                           <div key={alert.id} className={`p-3 rounded-lg border text-xs animate-slideIn ${
+                           <div key={alert.id} className={`p-3 rounded-lg border text-xs animate-slideIn relative group ${
                                alert.type === 'error' ? 'bg-red-50 border-red-100 text-red-800' :
                                alert.type === 'warning' ? 'bg-amber-50 border-amber-100 text-amber-800' :
                                alert.type === 'success' ? 'bg-green-50 border-green-100 text-green-800' :
                                'bg-blue-50 border-blue-100 text-blue-800'
                            }`}>
-                               <div className="flex justify-between items-center mb-1">
-                                   <span className="font-bold">{alert.title}</span>
+                               <button 
+                                 onClick={() => removeRecentAlert(alert.id)}
+                                 className="absolute top-2 right-2 p-1 hover:bg-black/5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                               >
+                                 <X className="w-3 h-3" />
+                               </button>
+                               <div className="flex justify-between items-center mb-1 pr-6">
+                                   <span className="font-bold flex items-center">
+                                       {alert.type === 'error' && <ShieldAlert className="w-3 h-3 mr-1" />}
+                                       {alert.type === 'warning' && <AlertTriangle className="w-3 h-3 mr-1" />}
+                                       {alert.type === 'success' && <CheckCircle className="w-3 h-3 mr-1" />}
+                                       {alert.type === 'info' && <Bell className="w-3 h-3 mr-1" />}
+                                       {alert.title}
+                                   </span>
                                    <span className="opacity-70 text-[10px]">{alert.timestamp}</span>
                                </div>
                                <div className="opacity-90">{alert.message}</div>
@@ -388,45 +400,9 @@ export const Dashboard = () => {
                 </div>
             </div>
 
-             {/* Live Verification Stream */}
-             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-slate-900 flex items-center">
-                    <Globe className="w-5 h-5 mr-2 text-brand-600" />
-                    Live Verifications
-                  </h3>
-                  {isLive && <span className="flex h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>}
-                </div>
-                <div className="space-y-4">
-                   {liveVerifications.length === 0 ? (
-                       <div className="text-center py-6 text-slate-400 text-sm">Listening for verification events...</div>
-                   ) : (
-                       liveVerifications.map((ver) => (
-                           <div key={ver.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100 animate-slideIn">
-                               <div>
-                                  <div className="text-xs font-bold text-slate-700">{ver.docId}</div>
-                                  <div className="text-[10px] text-slate-500">{ver.location} • {ver.timestamp}</div>
-                               </div>
-                               <div>
-                                  {ver.status === 'VERIFIED' ? (
-                                      <span className="flex items-center text-xs font-bold text-green-600 bg-green-100 px-2 py-1 rounded">
-                                          <CheckCircle className="w-3 h-3 mr-1" /> Valid
-                                      </span>
-                                  ) : (
-                                      <span className="flex items-center text-xs font-bold text-red-600 bg-red-100 px-2 py-1 rounded">
-                                          <ShieldAlert className="w-3 h-3 mr-1" /> Failed
-                                      </span>
-                                  )}
-                               </div>
-                           </div>
-                       ))
-                   )}
-                </div>
-             </div>
-
              {/* System Logs - ADMIN ONLY */}
              {isAdmin ? (
-                <div className="bg-slate-900 p-6 rounded-xl shadow-lg border border-slate-800 flex flex-col h-[400px] animate-fadeIn">
+                <div className="bg-slate-900 p-6 rounded-xl shadow-lg border border-slate-800 flex flex-col h-[500px] animate-fadeIn">
                     <div className="flex items-center justify-between mb-4 border-b border-slate-700 pb-2">
                     <h3 className="text-sm font-mono font-bold text-green-400 flex items-center">
                         <Terminal className="w-4 h-4 mr-2" /> 
@@ -454,42 +430,63 @@ export const Dashboard = () => {
                     </div>
                 </div>
              ) : (
-                <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 border-dashed flex flex-col items-center justify-center text-slate-400 text-sm h-[150px]">
-                    {isVerifier ? <Eye className="w-6 h-6 mb-2" /> : <Lock className="w-6 h-6 mb-2" />}
-                    <p>{isVerifier ? 'Verification Logs Only' : 'System Logs Restricted'}</p>
-                    <p className="text-xs opacity-70">(Admin Clearance Required)</p>
+                <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 border-dashed flex flex-col items-center justify-center text-slate-400 text-sm h-[300px] text-center animate-fadeIn">
+                    <Lock className="w-6 h-6 mb-3 opacity-50" />
+                    <p className="font-bold text-slate-900 mb-1 leading-tight">System Logs Restricted</p>
+                    <p className="text-xs opacity-70 px-4">Node-level debug information is restricted to Administrative roles. Use the Verification Stream for real-time validation events.</p>
                 </div>
              )}
 
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-              <h3 className="text-lg font-semibold text-slate-900 mb-6">Trust Distribution</h3>
-              <div className="h-48 flex items-center justify-center">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={INITIAL_STATUS_DATA}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={80}
-                      paddingAngle={5}
-                      dataKey="value"
-                    >
-                      {INITIAL_STATUS_DATA.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-semibold text-slate-900 flex items-center">
+                  <Globe className="w-5 h-5 mr-2 text-brand-600" />
+                  Live Verification Feed
+                </h3>
+                {isLive && <span className="flex h-2.5 w-2.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]"></span>}
               </div>
-              <div className="flex justify-center space-x-4 mt-4 text-xs">
-                {INITIAL_STATUS_DATA.map((entry, index) => (
-                  <div key={index} className="flex items-center">
-                    <div className="w-2 h-2 rounded-full mr-1" style={{ backgroundColor: COLORS[index] }} />
-                    <span className="text-slate-600">{entry.name}</span>
+              
+              <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                {liveVerifications.length === 0 ? (
+                  <div className="text-center py-12 text-slate-400">
+                    <Zap className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                    <p className="text-sm">Listening for network verifications...</p>
                   </div>
-                ))}
+                ) : (
+                  liveVerifications.map((ver) => (
+                    <div 
+                      key={ver.id} 
+                      className="flex items-center justify-between p-3.5 bg-slate-50 rounded-xl border border-slate-100 animate-slideIn hover:border-brand-200 transition-colors group"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div className={`w-2 h-2 rounded-full ${ver.status === 'VERIFIED' ? 'bg-green-500' : 'bg-red-500'} group-hover:scale-125 transition-transform`}></div>
+                        <div>
+                          <div className="text-xs font-bold text-slate-900">{ver.docId}</div>
+                          <div className="text-[10px] text-slate-500 font-medium">{ver.location} • {ver.timestamp}</div>
+                        </div>
+                      </div>
+                      <div>
+                        {ver.status === 'VERIFIED' ? (
+                          <span className="inline-flex items-center text-[10px] font-bold text-green-700 bg-green-100/50 px-2.5 py-1 rounded-full border border-green-200/50">
+                            VERIFIED
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center text-[10px] font-bold text-red-700 bg-red-100/50 px-2.5 py-1 rounded-full border border-red-200/50">
+                            FAILED
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+              
+              <div className="mt-6 pt-4 border-t border-slate-100 flex justify-between items-center text-[10px] text-slate-400 font-medium">
+                <span className="uppercase tracking-wider">Telemetry Stream Active</span>
+                <span className="flex items-center">
+                  <div className="w-1 h-1 bg-slate-300 rounded-full mr-1"></div>
+                  Real-time Consensus
+                </span>
               </div>
             </div>
           </div>

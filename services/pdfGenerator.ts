@@ -52,6 +52,7 @@ export const PDFService = {
       ["Issuer Identity", doc.issuerName],
       ["Registration Date", new Date(doc.createdAt).toLocaleString()],
       ["Blockchain Network", doc.network || "Unknown"],
+      ["Transaction ID", doc.txHash || "Pending"],
       ["Status", doc.status],
     ];
 

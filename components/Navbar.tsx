@@ -64,6 +64,7 @@ export const Navbar = () => {
           <div className="hidden md:flex items-center space-x-6">
             <Link to="/" className={isActive('/')}>Home</Link>
             <Link to="/verify" className={isActive('/verify')}>Verify</Link>
+            <Link to="/history" className={isActive('/history')}>History</Link>
             
             {/* Creation only for Issuers/Admins */}
             {(userRole === 'ADMIN' || userRole === 'ISSUER') && (
@@ -190,6 +191,7 @@ export const Navbar = () => {
         <div className="md:hidden glass border-t border-slate-200/50 px-4 pt-2 pb-6 space-y-2 absolute w-full animate-slideDown shadow-xl">
           <Link to="/" className="block py-3 px-2 text-slate-700 hover:bg-slate-50/50 rounded-lg font-medium">Home</Link>
           <Link to="/verify" className="block py-3 px-2 text-slate-700 hover:bg-slate-50/50 rounded-lg font-medium">Verify Document</Link>
+          <Link to="/history" className="block py-3 px-2 text-slate-700 hover:bg-slate-50/50 rounded-lg font-medium">History</Link>
           {(userRole === 'ADMIN' || userRole === 'ISSUER') && (
             <Link to="/create" className="block py-3 px-2 text-slate-700 hover:bg-slate-50/50 rounded-lg font-medium">Create & Register</Link>
           )}

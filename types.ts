@@ -29,6 +29,7 @@ export interface DocumentMetadata {
   status: DocumentStatus;
   aiForgeryScore?: number;
   network?: NetworkType;
+  txHash?: string;
 }
 
 export interface ForensicMetric {
@@ -52,6 +53,7 @@ export interface VerificationResult {
     confidence: number;
     reasoning: string;
     flags: string[];
+    recommendations?: string[];
     forensics: {
       visual: ForensicMetric;  // Pixel/Noise Analysis
       layout: ForensicMetric;  // New: Layout/Font Analysis

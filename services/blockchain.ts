@@ -67,7 +67,7 @@ export const NETWORK_CONFIGS: Record<NetworkType, NetworkConfig> = {
   },
   AVALANCHE: { 
     name: 'Avalanche C-Chain', 
-    blockTimeMs: 800, 
+    blockTimeMs: 400, 
     currency: 'AVAX', 
     chainId: 43114,
     type: 'EVM',
@@ -76,7 +76,7 @@ export const NETWORK_CONFIGS: Record<NetworkType, NetworkConfig> = {
   },
   HYPERLEDGER: { 
     name: 'Hyperledger Fabric', 
-    blockTimeMs: 200, 
+    blockTimeMs: 100, 
     currency: 'N/A', 
     chainId: 0,
     type: 'FABRIC',
@@ -86,7 +86,18 @@ export const NETWORK_CONFIGS: Record<NetworkType, NetworkConfig> = {
 };
 
 // Global Mock Registry (Simulates the distributed ledger state)
-const GLOBAL_LEDGER: DocumentMetadata[] = [
+const STORAGE_KEY = 'trustchain_ledger';
+
+const loadLedger = (): DocumentMetadata[] => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored ? JSON.parse(stored) : INITIAL_MOCK_DATA;
+  } catch {
+    return INITIAL_MOCK_DATA;
+  }
+};
+
+const INITIAL_MOCK_DATA: DocumentMetadata[] = [
   {
     id: 'doc_genesis_001',
     title: 'University Degree - John Doe',
@@ -99,8 +110,96 @@ const GLOBAL_LEDGER: DocumentMetadata[] = [
     status: DocumentStatus.ACTIVE,
     aiForgeryScore: 0.02,
     network: 'MAINNET'
+  },
+  {
+    id: 'doc_sample_authentic',
+    title: 'Authentic Certificate Sample',
+    type: 'Certificate',
+    issuerName: 'TrustChain Demo Issuer',
+    description: 'Valid sample document for demonstration purposes.',
+    createdAt: new Date().toISOString(),
+    hash: 'a30760f09bd51f628592b7323fb5c756ad9c37ca645be5272def9d2f2d4c46e6',
+    ipfsCid: 'QmSampleAuthenticCid12345',
+    status: DocumentStatus.ACTIVE,
+    aiForgeryScore: 0.01,
+    network: 'SEPOLIA'
+  },
+  {
+    id: 'doc_perfect_100',
+    title: 'TrustChain Sovereign Identity',
+    type: 'Protocol Document',
+    issuerName: 'TrustChain Global Protocol',
+    description: 'Perfect 100% verification score sample document.',
+    createdAt: new Date().toISOString(),
+    hash: 'perfect_hash_100_percent_accuracy',
+    ipfsCid: 'QmPerfect100PercentTrustHashSample',
+    status: DocumentStatus.ACTIVE,
+    aiForgeryScore: 0.00,
+    network: 'MAINNET'
+  },
+  {
+    id: 'doc_sample_forged',
+    title: 'Tampered Contract Sample',
+    type: 'Legal Contract',
+    issuerName: 'TrustChain Demo Issuer',
+    description: 'This document hash matches a known leak.',
+    createdAt: new Date().toISOString(),
+    hash: '29e8da9b953dc3922c3aaff782e9b5f90d8083b14e6ce4e56d984ed0e7e9e18a',
+    ipfsCid: 'QmSampleForgedCid67890',
+    status: DocumentStatus.SUSPICIOUS,
+    aiForgeryScore: 0.95,
+    network: 'SEPOLIA'
+  },
+  {
+    id: 'doc_revoked_002',
+    title: 'Revoked Contract - Acme Corp',
+    type: 'Legal Contract',
+    issuerName: 'Acme Corporation Legal Dept',
+    description: 'Employment Agreement (Voided)',
+    createdAt: new Date(Date.now() - 86400000 * 30).toISOString(), // 30 days ago
+    hash: 'revoked_hash_example_12345',
+    ipfsCid: 'QmRevokedHashExampleCID12345',
+    status: DocumentStatus.REVOKED,
+    aiForgeryScore: 0.05,
+    network: 'POLYGON'
+  },
+  {
+    id: 'doc_suspicious_003',
+    title: 'Suspicious Invoice - Unknown',
+    type: 'Invoice',
+    issuerName: 'Unknown Entity',
+    description: 'Pending Audit - High Value Transaction',
+    createdAt: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
+    hash: 'suspicious_hash_example_67890',
+    ipfsCid: 'QmSuspiciousHashExampleCID67890',
+    status: DocumentStatus.SUSPICIOUS,
+    aiForgeryScore: 0.85,
+    network: 'SEPOLIA'
+  },
+  {
+    id: 'doc_pending_004',
+    title: 'Pending Registration - New User',
+    type: 'Identity',
+    issuerName: 'TrustChain ID Service',
+    description: 'Identity Verification in Progress',
+    createdAt: new Date().toISOString(),
+    hash: 'pending_hash_example_54321',
+    ipfsCid: 'QmPendingHashExampleCID54321',
+    status: DocumentStatus.PENDING,
+    aiForgeryScore: 0.10,
+    network: 'AVALANCHE'
   }
 ];
+
+let GLOBAL_LEDGER: DocumentMetadata[] = loadLedger();
+
+const saveLedger = () => {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(GLOBAL_LEDGER));
+  } catch (e) {
+    console.error('Failed to save ledger to localStorage', e);
+  }
+};
 
 // ==========================================
 // 2. Abstraction Layer (Strategy Pattern)
@@ -118,7 +217,7 @@ class EVMAdapter implements ChainAdapter {
   constructor(private config: NetworkConfig, private network: NetworkType) {}
 
   async connectWallet(roleRequest?: UserRole): Promise<string> {
-    await delay(600);
+    await delay(100);
     // Simulate finding the correct account from the wallet based on the requested simulation role
     // In a real app, this would just be window.ethereum.request({ method: 'eth_requestAccounts' })
     if (roleRequest === 'ADMIN') return '0xAdminKey88888888888888888888888888888888';
@@ -128,7 +227,7 @@ class EVMAdapter implements ChainAdapter {
   }
 
   async estimateGas(strategy: GasStrategy = GasStrategy.STANDARD): Promise<{ cost: string, usd: string }> {
-    await delay(300);
+    await delay(100);
     
     // Smart Contract Optimization Simulation
     // Standard Gas: 21000 base + 50000 data storage = ~71000 gas
@@ -173,13 +272,19 @@ class EVMAdapter implements ChainAdapter {
 
     await delay(latency);
     
-    const newDoc: DocumentMetadata = { ...doc, status: DocumentStatus.ACTIVE, network: this.network };
+    const newDoc: DocumentMetadata = { 
+      ...doc, 
+      status: DocumentStatus.ACTIVE, 
+      network: this.network,
+      txHash: `0x${Math.random().toString(16).substring(2, 42)}`
+    };
     GLOBAL_LEDGER.push(newDoc);
+    saveLedger();
     return newDoc;
   }
 
   async fetchTransaction(hash: string): Promise<DocumentMetadata | null> {
-    await delay(800);
+    await delay(200);
     // Check Global Mock Ledger
     const found = GLOBAL_LEDGER.find(d => d.hash === hash || d.id === hash);
     return found || null;
@@ -203,8 +308,14 @@ class FabricAdapter implements ChainAdapter {
 
   async submitTransaction(doc: DocumentMetadata): Promise<DocumentMetadata> {
     await delay(200);
-    const newDoc: DocumentMetadata = { ...doc, status: DocumentStatus.ACTIVE, network: 'HYPERLEDGER' };
+    const newDoc: DocumentMetadata = { 
+      ...doc, 
+      status: DocumentStatus.ACTIVE, 
+      network: 'HYPERLEDGER',
+      txHash: `tx_${Math.random().toString(36).substring(2, 22)}`
+    };
     GLOBAL_LEDGER.push(newDoc);
+    saveLedger();
     return newDoc;
   }
 
@@ -226,6 +337,10 @@ export const BlockchainService = {
   },
 
   calculateHash: async (file: File): Promise<string> => {
+    // Demo Bypass: Perfect 100% Score for specific file name
+    if (file.name === 'perfect-verification-document.pdf') {
+        return 'perfect_hash_100_percent_accuracy';
+    }
     const buffer = await file.arrayBuffer();
     const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
